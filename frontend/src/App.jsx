@@ -14,8 +14,6 @@ import { routes } from "./routes/routes";
 
 
 
-
-
 function App() {
   const { user, loading } = useSelector((state) => state.AUTH);
   const dispatch = useDispatch();
