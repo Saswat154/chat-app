@@ -48,7 +48,7 @@ async function Database() {
 
 Database();
 const expressServer = app.listen(8000, () =>
-  console.log("Express server running on port 8080")
+  console.log("Express server running on port 8000")
 );
 
 websocketServer(expressServer);
