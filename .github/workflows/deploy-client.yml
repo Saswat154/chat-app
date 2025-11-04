@@ -6,7 +6,7 @@ on:
 env:
   EC2_HOST: 13.203.102.76
   EC2_USER: ec2-user                     # 👈 Changed from ubuntu → ec2-user
-  DEPLOY_PATH: /website/                 # Deploy frontend here
+  DEPLOY_PATH: /home/ec2-user/server                 # Deploy frontend here
   VITE_SERVERURL: https://server.sunilspace.me
   VITE_WSURL: wss://server.sunilspace.me
 
