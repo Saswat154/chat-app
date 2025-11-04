@@ -1,0 +1,65 @@
+name: Build and Deploy Frontend to EC2
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "frontend/**"
+
+env:
+  EC2_HOST: 13.203.102.76
+  EC2_USER: ec2-user                     # 👈 Changed from ubuntu → ec2-user
+  DEPLOY_PATH: /website/                 # Deploy frontend here
+  VITE_SERVERURL: https://server.sunilspace.me
+  VITE_WSURL: wss://server.sunilspace.me
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup NodeJS
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Test SSH Connection
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ env.EC2_HOST }}
+          username: ${{ env.EC2_USER }}   # 👈 uses ec2-user now
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "✅ SSH Connection Successful"
+            hostname
+            whoami
+
+      - name: Install dependencies & build frontend
+        run: |
+          cd client
+          npm install
+          echo "VITE_WSURL=${{ env.VITE_WSURL }}" >> .env.production
+          echo "VITE_SERVERURL=${{ env.VITE_SERVERURL }}" >> .env.production
+          npm run build
+
+      - name: SSH - Clean old build
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ env.EC2_HOST }}
+          username: ${{ env.EC2_USER }}   # 👈 ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            sudo mkdir -p ${{ env.DEPLOY_PATH }}
+            sudo rm -rf ${{ env.DEPLOY_PATH }}/*
+
+      - name: Copy built files to EC2
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ env.EC2_HOST }}
+          username: ${{ env.EC2_USER }}   # 👈 ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "client/dist/*"
+          target: "${{ env.DEPLOY_PATH }}"
