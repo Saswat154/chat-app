@@ -61,5 +61,5 @@ jobs:
           host: ${{ env.EC2_HOST }}
           username: ${{ env.EC2_USER }}   # 👈 ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "Frontend/dist/*"
+          source: "frontend/dist/*"
           target: "${{ env.DEPLOY_PATH }}"
