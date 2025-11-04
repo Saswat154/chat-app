@@ -39,7 +39,7 @@ jobs:
 
       - name: Install dependencies & build frontend
         run: |
-          cd client
+          cd frontend
           npm install
           echo "VITE_WSURL=${{ env.VITE_WSURL }}" >> .env.production
           echo "VITE_SERVERURL=${{ env.VITE_SERVERURL }}" >> .env.production
