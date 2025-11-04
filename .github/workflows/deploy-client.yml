@@ -1,143 +1,62 @@
-
-name: Build and Deploy Fullstack App to EC2
+name: Build and Deploy Frontend to EC2
 
 on:
   push:
     branches: ["main"]
-
 env:
   EC2_HOST: 13.203.102.76
-  EC2_USER: ec2-user
-  FRONTEND_DIR: frontend
-  BACKEND_DIR: backend
-  FRONTEND_DEPLOY_PATH: /website
-  BACKEND_DEPLOY_PATH: /backend
-  PM2_APP_NAME: backend-app
-  NODE_ENV: production
+  EC2_USER: ec2-user                     # 👈 Changed from ubuntu → ec2-user
+  DEPLOY_PATH: /website/                 # Deploy frontend here
+  VITE_SERVERURL: https://server.sunilspace.me
+  VITE_WSURL: wss://server.sunilspace.me
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 🧾 Checkout repository
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      # ⚙️ Setup Node.js (upgrade to v22 for React Router 7 compatibility)
-      - name: Setup Node.js
+      - name: Setup NodeJS
         uses: actions/setup-node@v3
         with:
-          node-version: 22
+          node-version: 18
 
-      # 🔐 Test SSH connection
       - name: Test SSH Connection
         uses: appleboy/ssh-action@v0.1.8
         with:
           host: ${{ env.EC2_HOST }}
-          username: ${{ env.EC2_USER }}
+          username: ${{ env.EC2_USER }}   # 👈 uses ec2-user now
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            echo "✅ SSH connection successful"
+            echo "✅ SSH Connection Successful"
             hostname
             whoami
 
-      ###########################################################
-      # 🏗️ FRONTEND BUILD & DEPLOY
-      ###########################################################
-
-      - name: Install and build frontend
+      - name: Install dependencies & build frontend
         run: |
-          cd ${{ env.FRONTEND_DIR }}
-          echo "📦 Installing frontend dependencies..."
+          cd frontend
           npm install
-          echo "🔧 Installing vite (in case not included)..."
-          npm install --save-dev vite
-          echo "🏗️ Building frontend..."
+          echo "VITE_WSURL=${{ env.VITE_WSURL }}" >> .env.production
+          echo "VITE_SERVERURL=${{ env.VITE_SERVERURL }}" >> .env.production
           npm run build
 
-      - name: SSH - Prepare frontend directory
+      - name: SSH - Clean old build
         uses: appleboy/ssh-action@v0.1.8
         with:
           host: ${{ env.EC2_HOST }}
-          username: ${{ env.EC2_USER }}
+          username: ${{ env.EC2_USER }}   # 👈 ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            sudo mkdir -p ${{ env.FRONTEND_DEPLOY_PATH }}
-            sudo rm -rf ${{ env.FRONTEND_DEPLOY_PATH }}/*
+            sudo mkdir -p ${{ env.DEPLOY_PATH }}
+            sudo rm -rf ${{ env.DEPLOY_PATH }}/*
 
-      - name: Copy frontend build to EC2
+      - name: Copy built files to EC2
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ env.EC2_HOST }}
-          username: ${{ env.EC2_USER }}
+          username: ${{ env.EC2_USER }}   # 👈 ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "${{ env.FRONTEND_DIR }}/dist/*"
-          target: "${{ env.FRONTEND_DEPLOY_PATH }}"
-
-      ###########################################################
-      # ⚙️ BACKEND DEPLOYMENT
-      ###########################################################
-
-      - name: SSH - Prepare backend directory
-        uses: appleboy/ssh-action@v0.1.8
-        with:
-          host: ${{ env.EC2_HOST }}
-          username: ${{ env.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            sudo mkdir -p ${{ env.BACKEND_DEPLOY_PATH }}
-            sudo rm -rf ${{ env.BACKEND_DEPLOY_PATH }}/*
-
-      - name: Copy backend files to EC2
-        uses: appleboy/scp-action@v0.1.4
-        with:
-          host: ${{ env.EC2_HOST }}
-          username: ${{ env.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "${{ env.BACKEND_DIR }}/*"
-          target: "${{ env.BACKEND_DEPLOY_PATH }}"
-
-      # 🗝️ Upload .env to EC2
-      - name: Upload backend .env file
-        uses: appleboy/ssh-action@v0.1.8
-        with:
-          host: ${{ env.EC2_HOST }}
-          username: ${{ env.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            echo "Creating backend .env file..."
-            cat <<EOF > ${{ env.BACKEND_DEPLOY_PATH }}/.env
-            NODE_ENV=production
-            PORT=8000
-            DB_URI=mongodb+srv://saswatpuhan062_db_user:VDYlOaVKQiaMUXFB@chat.4bmcmsn.mongodb.net/
-            DB_NAME=chat
-            JWTSECRET=bfbwivfww-f-ffvsfhjvsjhff
-            CLOUDINARY_NAME=df0zdzc0k
-            API_KEY=469418929299465
-            API_SECRET=zSaVK3uz8UtmUP5Aa85nd-ngbwQ
-            EOF
-
-      - name: SSH - Install backend deps and start with PM2
-        uses: appleboy/ssh-action@v0.1.8
-        with:
-          host: ${{ env.EC2_HOST }}
-          username: ${{ env.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd ${{ env.BACKEND_DEPLOY_PATH }}
-            echo "📦 Installing backend dependencies..."
-            npm install --production
-
-            echo "🚀 Starting backend with PM2..."
-            if ! command -v pm2 &> /dev/null
-            then
-              sudo npm install -g pm2
-            fi
-
-            pm2 delete ${{ env.PM2_APP_NAME }} || true
-            pm2 start server.js --name ${{ env.PM2_APP_NAME }}
-            pm2 save
-            pm2 startup systemd -u $USER --hp $HOME
-
-            echo "✅ Backend deployed and running!"
+          source: "client/dist/*"
+          target: "${{ env.DEPLOY_PATH }}"
