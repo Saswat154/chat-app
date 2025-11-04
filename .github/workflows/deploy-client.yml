@@ -1,3 +1,4 @@
+
 name: Build and Deploy Fullstack App to EC2
 
 on:
@@ -19,17 +20,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 🧾 Checkout code
+      # 🧾 Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # ⚙️ Setup Node.js
+      # ⚙️ Setup Node.js (upgrade to v22 for React Router 7 compatibility)
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: 22
 
-      # 🧠 Test EC2 SSH Connection
+      # 🔐 Test SSH connection
       - name: Test SSH Connection
         uses: appleboy/ssh-action@v0.1.8
         with:
@@ -45,10 +46,12 @@ jobs:
       # 🏗️ FRONTEND BUILD & DEPLOY
       ###########################################################
 
-      - name: Install frontend dependencies and build
+      - name: Install and build frontend
         run: |
           cd ${{ env.FRONTEND_DIR }}
+          echo "📦 Installing frontend dependencies..."
           npm install
+          echo "🏗️ Building frontend..."
           npm run build
 
       - name: SSH - Prepare frontend directory
@@ -93,7 +96,7 @@ jobs:
           source: "${{ env.BACKEND_DIR }}/*"
           target: "${{ env.BACKEND_DEPLOY_PATH }}"
 
-      # 🗝️ Create and upload .env file to EC2
+      # 🗝️ Upload .env to EC2
       - name: Upload backend .env file
         uses: appleboy/ssh-action@v0.1.8
         with:
@@ -104,6 +107,7 @@ jobs:
             echo "Creating backend .env file..."
             cat <<EOF > ${{ env.BACKEND_DEPLOY_PATH }}/.env
             NODE_ENV=production
+            PORT=8000
             DB_URI=mongodb+srv://saswatpuhan062_db_user:VDYlOaVKQiaMUXFB@chat.4bmcmsn.mongodb.net/
             DB_NAME=chat
             JWTSECRET=bfbwivfww-f-ffvsfhjvsjhff
@@ -112,7 +116,7 @@ jobs:
             API_SECRET=zSaVK3uz8UtmUP5Aa85nd-ngbwQ
             EOF
 
-      - name: SSH - Install backend dependencies and start with PM2
+      - name: SSH - Install backend deps and start with PM2
         uses: appleboy/ssh-action@v0.1.8
         with:
           host: ${{ env.EC2_HOST }}
@@ -120,7 +124,6 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ${{ env.BACKEND_DEPLOY_PATH }}
-
             echo "📦 Installing backend dependencies..."
             npm install --production
 
@@ -130,13 +133,8 @@ jobs:
               sudo npm install -g pm2
             fi
 
-            # Stop existing process if it exists
             pm2 delete ${{ env.PM2_APP_NAME }} || true
-
-            # Start backend
             pm2 start server.js --name ${{ env.PM2_APP_NAME }}
-
-            # Save PM2 process and enable startup on boot
             pm2 save
             pm2 startup systemd -u $USER --hp $HOME
 

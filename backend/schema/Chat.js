@@ -9,6 +9,7 @@ const chatSchema=new mongoose.Schema({
             ref: "userModel",
           }
     ],
+    
      lastmessage:{
         type:mongoose.Schema.Types.ObjectId,
         ref:"messageModel"
