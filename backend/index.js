@@ -2,6 +2,7 @@ import express from "express";
 import WebSocket, { WebSocketServer } from "ws";
 import mongoose from "mongoose";
 import "dotenv/config";
+import "./job/worker.js"
 import CookieParser from "cookie-parser";
 import { CustomError, errorMiddleware } from "./error/error.js";
 import userRoutes from "./routers/User.js";

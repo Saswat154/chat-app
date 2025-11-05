@@ -7,8 +7,17 @@ import messageModel from "../schema/Message.js";
 import { Emit } from "../helpers/EventEmit.js";
 import { UploadToCloudnary } from "../helpers/imageConfig.js";
 
+
+import {signInMail,welcomeMail} from "../job/template.js";
+import {sendEmailJob} from "../job/queue.js";
+
 export const signUp = errorHandler(async (req, res, next) => {
   const newUser = await userModel.create(req.body);
+  await sendEmailJob({
+    to: newUser.email,
+    subject: "Welcome to NextChat! 🎉",
+    html: welcomeMail(req.body.username),
+  });
   tokenProvider(201, res, newUser);
 });
 
@@ -24,6 +33,17 @@ export const signIn = errorHandler(async (req, res, next) => {
   ) {
     return next(new CustomError("Incorrect email or password!", 401));
   }
+  await sendEmailJob({
+    to: existUser.email,
+    subject: "Sign-In Alert 🔐",
+    html: signInMail(
+      existUser.username,
+      req.ip,
+      new Date().toLocaleString(),
+      req.headers["user-agent"],
+      "https://nextchat.com/reset-password"
+    ),
+  });
   tokenProvider(200, res, existUser);
 });
 
